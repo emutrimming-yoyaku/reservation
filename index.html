@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>トリミング仮予約</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+    h2 { text-align: center; color: #00b900; margin-top: 0; margin-bottom: 10px; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #555; }
+    input[type="text"], input[type="tel"], textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; -webkit-appearance: none; background-color: #fff; }
+    textarea { height: 100px; resize: vertical; line-height: 1.5; }
+    
+    .radio-group, .checkbox-group { margin-top: 5px; }
+    .radio-label, .checkbox-label { display: block; padding: 10px; border-bottom: 1px solid #eee; font-size: 16px; cursor: pointer; }
+    .radio-label:last-child, .checkbox-label:last-child { border-bottom: none; }
+    .radio-label input, .checkbox-label input { margin-right: 10px; transform: scale(1.2); }
+
+    .date-display { display: flex; gap: 10px; margin-bottom: 10px; }
+    .date-box { flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 8px; text-align: center; background: #fafafa; cursor: pointer; }
+    .date-box.active { border-color: #00b900; background: #e6f9e6; color: #00b900; font-weight: bold; }
+    .date-box span { display: block; font-size: 12px; color: #888; margin-bottom: 4px; }
+    .date-box div { font-size: 16px; font-weight: bold; }
+    .calendar-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .calendar-table th { color: #888; font-size: 12px; padding-bottom: 5px; }
+    .calendar-table td { text-align: center; padding: 8px 0; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 14px; }
+    .day-cell:hover { background-color: #f0f0f0; }
+    .day-cell.disabled { color: #ccc; pointer-events: none; text-decoration: line-through; background-color: #f9f9f9; }
+    .day-cell.selected-1 { background-color: #00b900; color: white; border-radius: 50%; }
+    .day-cell.selected-2 { background-color: #0084b9; color: white; border-radius: 50%; }
+    button { width: 100%; padding: 16px; margin-top: 20px; background-color: #00b900; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    button:active { background-color: #009900; }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    #complete-area { display: none; text-align: center; padding: 40px 20px; }
+    .check-icon { font-size: 60px; color: #00b900; margin-bottom: 20px; }
+    .important-msg { background-color: #fff4f4; border: 2px solid #ffcccc; border-radius: 8px; padding: 15px; color: #d32f2f; font-weight: bold; line-height: 1.6; margin-top: 20px; }
+    #login-area { display: block; margin-bottom: 20px; text-align: center; }
+    .login-link-btn { display: block; background-color: #06C755; color: white; font-weight: bold; font-size: 16px; padding: 15px; border-radius: 8px; text-decoration: none; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .notice-box { background-color: #fff9e6; border: 1px solid #ffcc00; border-radius: 8px; padding: 15px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; color: #555; }
+    #status-bar { background-color: #ffcccc; color: #d32f2f; padding: 10px; text-align: center; font-size: 14px; font-weight: bold; border-radius: 5px; margin-bottom: 15px; }
+    #status-bar.connected { background-color: #e6f9e6; color: #00b900; }
+  </style>
+</head>
+<body>
+  <div id="form-area">
+    <h2>トリミング仮予約</h2>
+    <div id="status-bar">🔴 LINE未連携（通知が届きません）</div>
+    <div id="login-area">
+      <div style="font-size:13px;color:#666;margin-bottom:5px;">▼ 予約の控えを受け取るには連携してください ▼</div>
+      <a href="https://liff.line.me/2008780635-CFUcjozG" target="_top" class="login-link-btn">LINE連携する (リロード)</a>
+    </div>
+    <div class="notice-box">
+      トリミングの予約には、当院ホームページ、<a href="https://www.emu-vet.jp/trimming/" target="_blank">トリミングページ</a>の注意事項をよくお読みください。<br>
+      当院の診察券をお持ちでない場合はお電話（<a href="tel:0474587557">047-458-7557</a>）にてご連絡ください。
+    </div>
+    
+    <div class="card">
+      <label>診察券番号 (数字のみ)</label>
+      <input type="tel" id="cardNo" placeholder="例：12345">
+      <label>飼主様お名前</label>
+      <input type="text" id="ownerName" placeholder="飼い主様のお名前を入力してください">
+      <label>ペット名</label>
+      <input type="text" id="petName" placeholder="例：ポチ">
+    </div>
+
+    <div class="card">
+      <label style="margin-top:0;">トリミング内容</label>
+      <div class="radio-group">
+        <label class="radio-label"><input type="radio" name="menu" value="シャンプー" checked> シャンプー</label>
+        <label class="radio-label"><input type="radio" name="menu" value="カット"> カット</label>
+      </div>
+
+      <label>シャンプーの種類（任意）</label>
+      <select id="shampoo">
+        <option value="">指定なし</option>
+        <option value="EFAシャンプー">EFAシャンプー</option>
+        <option value="カシミヤタッチシャンプー">カシミヤタッチシャンプー</option>
+        <option value="セラミドシャンプー">セラミドシャンプー</option>
+      </select>
+
+      <label>オプション（複数選択可）</label>
+      <div class="checkbox-group">
+        <label class="checkbox-label"><input type="checkbox" name="option" value="ましゅまろ泡パック"> ましゅまろ泡パック</label>
+        <label class="checkbox-label"><input type="checkbox" name="option" value="ハーブパック＋ハーブ湯"> ハーブパック＋ハーブ湯</label>
+        <label class="checkbox-label"><input type="checkbox" name="option" value="ダーマモイストバス"> ダーマモイストバス</label>
+        <label class="checkbox-label"><input type="checkbox" name="option" value="薬浴"> 薬浴</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <label style="margin-top:0;">希望日を選択してください</label>
+      <p style="font-size:12px; color:#666; margin-bottom:15px;">水・日・祝日は休診です。<br><span style="color:#00b900;">■緑＝第1希望</span> / <span style="color:#0084b9;">■青＝第2希望</span></p>
+      <div class="date-display">
+        <div class="date-box active" id="box-1" onclick="setMode(1)"><span>第1希望</span><div id="disp-date1">未選択</div></div>
+        <div class="date-box" id="box-2" onclick="setMode(2)"><span>第2希望</span><div id="disp-date2">未選択</div></div>
+      </div>
+      <input type="hidden" id="val-date1"><input type="hidden" id="val-date2">
+      <div id="calendar-container">読み込み中...</div>
+    </div>
+    <div class="card">
+      <label style="margin-top:0;">その他（診察・ご要望）</label>
+      <textarea id="note" placeholder="例：耳の汚れが気になる、混合ワクチン希望など"></textarea>
+    </div>
+    <button id="btn" onclick="submitReservation()">予約リクエストを送信</button>
+  </div>
+
+  <div id="complete-area" class="card">
+    <div class="check-icon">✔</div>
+    <h3>送信完了</h3>
+    <p>予約リクエストを受け付けました。</p>
+    <div class="important-msg">まだ予約は確定していません。<br>病院で確認後、LINEにて<br><span style="font-size:1.2em; text-decoration:underline;">予約確定のご連絡</span>をいたします。</div>
+    <div style="margin-top:40px;font-weight:bold;background:#eee;padding:20px;border-radius:8px;">画面右上の「×」ボタンで<br>画面を閉じてください</div>
+  </div>
+
+  <script>
+    // ▼▼▼ ここにGASのURL ▼▼▼
+    const gasApiUrl = "https://script.google.com/macros/s/AKfycbxFyNZqwMI8M_IaesWwWxu5PjZSLXoLwgdPVuXT1QXBTxFB-i4fbRKrzf5Z0G8Rl8VV/exec"; 
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    const myLiffId = '2008780635-CFUcjozG'; 
+    let currentMode = 1;
+    let blockedDates = [];
+    let myAccessToken = ""; 
+
+    window.onload = function() {
+      // 1. 保存されたユーザー情報を復元（オートフィル）
+      loadUserData();
+
+      // 2. カレンダー情報取得
+      fetch(gasApiUrl + "?action=getBlockDates")
+        .then(res => res.json())
+        .then(data => { blockedDates = data; renderCalendars(); })
+        .catch(err => { console.error(err); renderCalendars(); });
+
+      // 3. LIFF初期化
+      liff.init({ liffId: myLiffId }).then(() => {
+        if (liff.isLoggedIn()) {
+          myAccessToken = liff.getAccessToken();
+          updateStatusToConnected();
+        }
+      });
+    };
+
+    function updateStatusToConnected() {
+      document.getElementById('status-bar').innerText = "🟢 LINE連携済み（通知が届きます）";
+      document.getElementById('status-bar').className = "connected";
+      document.getElementById('login-area').style.display = 'none';
+    }
+
+    // ▼▼▼ 入力情報の保存・読み込み機能 ▼▼▼
+    function saveUserData(cardNo, ownerName, petName) {
+      const userData = { cardNo: cardNo, ownerName: ownerName, petName: petName };
+      localStorage.setItem('trimming_user_data', JSON.stringify(userData));
+    }
+
+    function loadUserData() {
+      const savedData = localStorage.getItem('trimming_user_data');
+      if (savedData) {
+        try {
+          const userData = JSON.parse(savedData);
+          if (userData.cardNo) document.getElementById('cardNo').value = userData.cardNo;
+          if (userData.ownerName) document.getElementById('ownerName').value = userData.ownerName;
+          if (userData.petName) document.getElementById('petName').value = userData.petName;
+        } catch (e) {
+          console.log("データ読み込みエラー", e);
+        }
+      }
+    }
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+    function renderCalendars() {
+      const container = document.getElementById('calendar-container');
+      container.innerHTML = "";
+      const today = new Date();
+      for (let i = 0; i < 2; i++) {
+        const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
+        container.innerHTML += createMonthHTML(targetDate.getFullYear(), targetDate.getMonth());
+      }
+    }
+    function createMonthHTML(year, month) {
+      const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      let html = `<div style="text-align:center;font-weight:bold;margin:15px 0 10px;">${year}年 ${monthNames[month]}</div>`;
+      html += `<table class="calendar-table"><thead><tr><th style="color:red">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue">土</th></tr></thead><tbody><tr>`;
+      for (let i = 0; i < firstDay.getDay(); i++) { html += `<td></td>`; }
+      for (let d = 1; d <= lastDay.getDate(); d++) {
+        const currentCheck = new Date(year, month, d);
+        if (currentCheck.getDay() === 0 && d !== 1) { html += `</tr><tr>`; }
+        const dateStr = formatDate(currentCheck);
+        let classes = "day-cell";
+        let onClick = `selectDate('${dateStr}')`;
+        const todayStr = formatDate(new Date());
+        const dayOfWeek = currentCheck.getDay();
+        if (dateStr < todayStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { classes += " disabled"; onClick = ""; }
+        html += `<td class="${classes}" id="cell-${dateStr}" onclick="${onClick}">${d}</td>`;
+      }
+      html += `</tr></tbody></table>`;
+      return html;
+    }
+    function selectDate(dateStr) {
+      if (currentMode === 1) { document.getElementById('val-date1').value = dateStr; document.getElementById('disp-date1').innerText = dateStr; setMode(2); }
+      else { document.getElementById('val-date2').value = dateStr; document.getElementById('disp-date2').innerText = dateStr; }
+      updateCalendarStyles();
+    }
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('box-1').className = mode === 1 ? 'date-box active' : 'date-box';
+      document.getElementById('box-2').className = mode === 2 ? 'date-box active' : 'date-box';
+    }
+    function updateCalendarStyles() {
+      const cells = document.querySelectorAll('.day-cell');
+      cells.forEach(c => { c.classList.remove('selected-1', 'selected-2'); });
+      const d1 = document.getElementById('val-date1').value;
+      const d2 = document.getElementById('val-date2').value;
+      if (d1) { const el = document.getElementById('cell-' + d1); if (el) el.classList.add('selected-1'); }
+      if (d2) { const el = document.getElementById('cell-' + d2); if (el) el.classList.add('selected-2'); }
+    }
+    
+    function submitReservation() {
+      if (!myAccessToken) { if(!confirm("【注意】\nLINE連携ができていないため、予約の控え通知が届きません。\n\nそれでも予約を送信しますか？")) return; }
+      
+      const cardNo = document.getElementById('cardNo').value;
+      const ownerName = document.getElementById('ownerName').value;
+      const petName = document.getElementById('petName').value;
+      const date1 = document.getElementById('val-date1').value;
+      const date2 = document.getElementById('val-date2').value;
+      const note = document.getElementById('note').value;
+      
+      const menu = document.querySelector('input[name="menu"]:checked').value;
+      const shampoo = document.getElementById('shampoo').value;
+      const optionEls = document.querySelectorAll('input[name="option"]:checked');
+      const options = Array.from(optionEls).map(el => el.value).join(', ');
+
+      if (!cardNo || !ownerName || !petName || !date1) { alert("必須項目が入力されていません。"); return; }
+      
+      // ▼ 送信前にユーザー情報を端末に保存
+      saveUserData(cardNo, ownerName, petName);
+
+      const btn = document.getElementById('btn');
+      btn.disabled = true;
+      btn.innerText = "送信中...";
+
+      const data = { 
+        cardNo: cardNo, 
+        ownerName: ownerName, 
+        petName: petName, 
+        menu: menu, 
+        shampoo: shampoo,
+        options: options, 
+        date1: date1, 
+        date2: date2, 
+        note: note, 
+        accessToken: myAccessToken 
+      };
+      
+      fetch(gasApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        body: JSON.stringify(data)
+      })
+      .then(response => response.json())
+      .then(json => {
+        if (json.status === 'success') {
+          document.getElementById('form-area').style.display = 'none';
+          document.getElementById('complete-area').style.display = 'block';
+        } else {
+          alert("エラー: " + json.message);
+          btn.disabled = false;
+        }
+      })
+      .catch(err => { alert("通信エラー: " + err); btn.disabled = false; });
+    }
+    
+    function formatDate(dt) {
+      const y = dt.getFullYear();
+      const m = ('00' + (dt.getMonth()+1)).slice(-2);
+      const d = ('00' + dt.getDate()).slice(-2);
+      return y + '-' + m + '-' + d;
+    }
+  </script>
+</body>
+</html>
