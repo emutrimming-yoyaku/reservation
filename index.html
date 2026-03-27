@@ -13,6 +13,10 @@
     input[type="text"], input[type="tel"], textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; -webkit-appearance: none; background-color: #fff; }
     textarea { height: 100px; resize: vertical; line-height: 1.5; }
     
+    /* 姓名分割用のフレックスボックス */
+    .name-group { display: flex; gap: 10px; }
+    .name-group input { flex: 1; }
+
     .radio-group, .checkbox-group { margin-top: 5px; }
     .radio-label, .checkbox-label { display: block; padding: 10px; border-bottom: 1px solid #eee; font-size: 16px; cursor: pointer; }
     .radio-label:last-child, .checkbox-label:last-child { border-bottom: none; }
@@ -59,8 +63,13 @@
     <div class="card">
       <label>診察券番号 (数字のみ)</label>
       <input type="tel" id="cardNo" placeholder="例：12345">
+      
       <label>飼主様お名前</label>
-      <input type="text" id="ownerName" placeholder="飼い主様のお名前を入力してください">
+      <div class="name-group">
+        <input type="text" id="ownerLastName" placeholder="姓 (例：鈴木)">
+        <input type="text" id="ownerFirstName" placeholder="名 (例：太郎)">
+      </div>
+
       <label>ペット名</label>
       <input type="text" id="petName" placeholder="例：ポチ">
     </div>
@@ -121,20 +130,17 @@
 
     const myLiffId = '2008780635-CFUcjozG'; 
     let currentMode = 1;
-    let blockedDates = [];
+    let blockedDates =[];
     let myAccessToken = ""; 
 
     window.onload = function() {
-      // 1. 保存されたユーザー情報を復元（オートフィル）
       loadUserData();
 
-      // 2. カレンダー情報取得
       fetch(gasApiUrl + "?action=getBlockDates")
         .then(res => res.json())
         .then(data => { blockedDates = data; renderCalendars(); })
         .catch(err => { console.error(err); renderCalendars(); });
 
-      // 3. LIFF初期化
       liff.init({ liffId: myLiffId }).then(() => {
         if (liff.isLoggedIn()) {
           myAccessToken = liff.getAccessToken();
@@ -149,9 +155,14 @@
       document.getElementById('login-area').style.display = 'none';
     }
 
-    // ▼▼▼ 入力情報の保存・読み込み機能 ▼▼▼
-    function saveUserData(cardNo, ownerName, petName) {
-      const userData = { cardNo: cardNo, ownerName: ownerName, petName: petName };
+    // ▼▼▼ 姓名分割対応の保存・読み込み ▼▼▼
+    function saveUserData(cardNo, ownerLastName, ownerFirstName, petName) {
+      const userData = { 
+        cardNo: cardNo, 
+        ownerLastName: ownerLastName, 
+        ownerFirstName: ownerFirstName, 
+        petName: petName 
+      };
       localStorage.setItem('trimming_user_data', JSON.stringify(userData));
     }
 
@@ -161,7 +172,8 @@
         try {
           const userData = JSON.parse(savedData);
           if (userData.cardNo) document.getElementById('cardNo').value = userData.cardNo;
-          if (userData.ownerName) document.getElementById('ownerName').value = userData.ownerName;
+          if (userData.ownerLastName) document.getElementById('ownerLastName').value = userData.ownerLastName;
+          if (userData.ownerFirstName) document.getElementById('ownerFirstName').value = userData.ownerFirstName;
           if (userData.petName) document.getElementById('petName').value = userData.petName;
         } catch (e) {
           console.log("データ読み込みエラー", e);
@@ -180,7 +192,7 @@
       }
     }
     function createMonthHTML(year, month) {
-      const monthNames = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
+      const monthNames =["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
       let html = `<div style="text-align:center;font-weight:bold;margin:15px 0 10px;">${year}年 ${monthNames[month]}</div>`;
@@ -223,7 +235,8 @@
       if (!myAccessToken) { if(!confirm("【注意】\nLINE連携ができていないため、予約の控え通知が届きません。\n\nそれでも予約を送信しますか？")) return; }
       
       const cardNo = document.getElementById('cardNo').value;
-      const ownerName = document.getElementById('ownerName').value;
+      const ownerLastName = document.getElementById('ownerLastName').value;
+      const ownerFirstName = document.getElementById('ownerFirstName').value;
       const petName = document.getElementById('petName').value;
       const date1 = document.getElementById('val-date1').value;
       const date2 = document.getElementById('val-date2').value;
@@ -234,18 +247,22 @@
       const optionEls = document.querySelectorAll('input[name="option"]:checked');
       const options = Array.from(optionEls).map(el => el.value).join(', ');
 
-      if (!cardNo || !ownerName || !petName || !date1) { alert("必須項目が入力されていません。"); return; }
+      if (!cardNo || !ownerLastName || !ownerFirstName || !petName || !date1) { 
+        alert("必須項目が入力されていません。"); 
+        return; 
+      }
       
-      // ▼ 送信前にユーザー情報を端末に保存
-      saveUserData(cardNo, ownerName, petName);
+      saveUserData(cardNo, ownerLastName, ownerFirstName, petName);
 
       const btn = document.getElementById('btn');
       btn.disabled = true;
       btn.innerText = "送信中...";
 
+      // ▼ 姓名分割してGASへ送信
       const data = { 
         cardNo: cardNo, 
-        ownerName: ownerName, 
+        ownerLastName: ownerLastName, 
+        ownerFirstName: ownerFirstName, 
         petName: petName, 
         menu: menu, 
         shampoo: shampoo,
