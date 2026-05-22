@@ -13,7 +13,6 @@
     input[type="text"], input[type="tel"], textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; -webkit-appearance: none; background-color: #fff; }
     textarea { height: 100px; resize: vertical; line-height: 1.5; }
     
-    /* 姓名分割用のフレックスボックス */
     .name-group { display: flex; gap: 10px; }
     .name-group input { flex: 1; }
 
@@ -62,7 +61,7 @@
     
     <div class="card">
       <label>診察券番号 (数字のみ)</label>
-      <input type="tel" id="cardNo" placeholder="例：12345">
+      <input type="tel" id="cardNo" placeholder="例：1234">
       
       <label>飼主様お名前</label>
       <div class="name-group">
@@ -124,9 +123,8 @@
   </div>
 
   <script>
-    // ▼▼▼ ここにGASのURL ▼▼▼
+    // GAS
     const gasApiUrl = "https://script.google.com/macros/s/AKfycbxFyNZqwMI8M_IaesWwWxu5PjZSLXoLwgdPVuXT1QXBTxFB-i4fbRKrzf5Z0G8Rl8VV/exec"; 
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     const myLiffId = '2008780635-CFUcjozG'; 
     let currentMode = 1;
@@ -155,7 +153,7 @@
       document.getElementById('login-area').style.display = 'none';
     }
 
-    // ▼▼▼ 姓名分割対応の保存・読み込み ▼▼▼
+    // 姓名分割対応保存・読み込み
     function saveUserData(cardNo, ownerLastName, ownerFirstName, petName) {
       const userData = { 
         cardNo: cardNo, 
@@ -180,17 +178,18 @@
         }
       }
     }
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-    function renderCalendars() {
+   function renderCalendars() {
       const container = document.getElementById('calendar-container');
       container.innerHTML = "";
       const today = new Date();
-      for (let i = 0; i < 2; i++) {
+      // 変更点: 60日先までカバーするため、カレンダー枠を「3ヶ月分」表示する
+      for (let i = 0; i < 3; i++) {
         const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
         container.innerHTML += createMonthHTML(targetDate.getFullYear(), targetDate.getMonth());
       }
     }
+
     function createMonthHTML(year, month) {
       const monthNames =["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
       const firstDay = new Date(year, month, 1);
@@ -198,20 +197,35 @@
       let html = `<div style="text-align:center;font-weight:bold;margin:15px 0 10px;">${year}年 ${monthNames[month]}</div>`;
       html += `<table class="calendar-table"><thead><tr><th style="color:red">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue">土</th></tr></thead><tbody><tr>`;
       for (let i = 0; i < firstDay.getDay(); i++) { html += `<td></td>`; }
+      
+      // ▼ 追加: 今日の日付と、60日後の日付を計算
+      const todayDate = new Date();
+      const todayStr = formatDate(todayDate);
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() + 60); // 60日後
+      const maxDateStr = formatDate(maxDate);
+      // ▲ 追加ここまで
+
       for (let d = 1; d <= lastDay.getDate(); d++) {
         const currentCheck = new Date(year, month, d);
         if (currentCheck.getDay() === 0 && d !== 1) { html += `</tr><tr>`; }
         const dateStr = formatDate(currentCheck);
         let classes = "day-cell";
         let onClick = `selectDate('${dateStr}')`;
-        const todayStr = formatDate(new Date());
         const dayOfWeek = currentCheck.getDay();
-        if (dateStr < todayStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { classes += " disabled"; onClick = ""; }
+        
+        // 変更点: 「dateStr > maxDateStr (60日より先)」の条件を追加してグレーアウトさせる
+        if (dateStr < todayStr || dateStr > maxDateStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { 
+          classes += " disabled"; 
+          onClick = ""; 
+        }
+        
         html += `<td class="${classes}" id="cell-${dateStr}" onclick="${onClick}">${d}</td>`;
       }
       html += `</tr></tbody></table>`;
       return html;
     }
+
     function selectDate(dateStr) {
       if (currentMode === 1) { document.getElementById('val-date1').value = dateStr; document.getElementById('disp-date1').innerText = dateStr; setMode(2); }
       else { document.getElementById('val-date2').value = dateStr; document.getElementById('disp-date2').innerText = dateStr; }
@@ -258,7 +272,7 @@
       btn.disabled = true;
       btn.innerText = "送信中...";
 
-      // ▼ 姓名分割してGASへ送信
+      // GASへ送信
       const data = { 
         cardNo: cardNo, 
         ownerLastName: ownerLastName, 
