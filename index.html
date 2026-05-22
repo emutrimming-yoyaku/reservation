@@ -179,11 +179,11 @@
       }
     }
 
-   function renderCalendars() {
+function renderCalendars() {
       const container = document.getElementById('calendar-container');
       container.innerHTML = "";
       const today = new Date();
-      // 変更点: 60日先までカバーするため、カレンダー枠を「3ヶ月分」表示する
+      // 50日先までカバーするため、カレンダー枠を「3ヶ月分」表示する
       for (let i = 0; i < 3; i++) {
         const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
         container.innerHTML += createMonthHTML(targetDate.getFullYear(), targetDate.getMonth());
@@ -198,11 +198,11 @@
       html += `<table class="calendar-table"><thead><tr><th style="color:red">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue">土</th></tr></thead><tbody><tr>`;
       for (let i = 0; i < firstDay.getDay(); i++) { html += `<td></td>`; }
       
-      // ▼ 追加: 今日の日付と、60日後の日付を計算
+      // ▼ 追加: 今日の日付と、50日後の日付を計算
       const todayDate = new Date();
       const todayStr = formatDate(todayDate);
       const maxDate = new Date();
-      maxDate.setDate(maxDate.getDate() + 60); // 60日後
+      maxDate.setDate(maxDate.getDate() + 50); // ★ここで「50日後」を指定しています
       const maxDateStr = formatDate(maxDate);
       // ▲ 追加ここまで
 
@@ -214,7 +214,7 @@
         let onClick = `selectDate('${dateStr}')`;
         const dayOfWeek = currentCheck.getDay();
         
-        // 変更点: 「dateStr > maxDateStr (60日より先)」の条件を追加してグレーアウトさせる
+        // 変更点: 「dateStr > maxDateStr (50日より先)」の条件を追加してグレーアウトさせる
         if (dateStr < todayStr || dateStr > maxDateStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { 
           classes += " disabled"; 
           onClick = ""; 
