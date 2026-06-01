@@ -61,7 +61,7 @@
     
     <div class="card">
       <label>診察券番号 (数字のみ)</label>
-      <input type="tel" id="cardNo" placeholder="例：1234">
+      <input type="tel" id="cardNo" placeholder="例：12345">
       
       <label>飼主様お名前</label>
       <div class="name-group">
@@ -98,7 +98,7 @@
     </div>
 
     <div class="card">
-      <label style="margin-top:0;">希望日を選択してください</label>
+      <label style="margin-top:0;">希望日を選択してください <span style="color:red; font-size:12px;">※第1・第2希望ともに必須（別日）</span></label>
       <p style="font-size:12px; color:#666; margin-bottom:15px;">水・日・祝日は休診です。<br><span style="color:#00b900;">■緑＝第1希望</span> / <span style="color:#0084b9;">■青＝第2希望</span></p>
       <div class="date-display">
         <div class="date-box active" id="box-1" onclick="setMode(1)"><span>第1希望</span><div id="disp-date1">未選択</div></div>
@@ -179,17 +179,15 @@
       }
     }
 
-function renderCalendars() {
+    function renderCalendars() {
       const container = document.getElementById('calendar-container');
       container.innerHTML = "";
       const today = new Date();
-      // 50日先までカバーするため、カレンダー枠を「3ヶ月分」表示する
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 2; i++) {
         const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
         container.innerHTML += createMonthHTML(targetDate.getFullYear(), targetDate.getMonth());
       }
     }
-
     function createMonthHTML(year, month) {
       const monthNames =["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
       const firstDay = new Date(year, month, 1);
@@ -197,38 +195,40 @@ function renderCalendars() {
       let html = `<div style="text-align:center;font-weight:bold;margin:15px 0 10px;">${year}年 ${monthNames[month]}</div>`;
       html += `<table class="calendar-table"><thead><tr><th style="color:red">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue">土</th></tr></thead><tbody><tr>`;
       for (let i = 0; i < firstDay.getDay(); i++) { html += `<td></td>`; }
-      
-      // ▼ 追加: 今日の日付と、50日後の日付を計算
-      const todayDate = new Date();
-      const todayStr = formatDate(todayDate);
-      const maxDate = new Date();
-      maxDate.setDate(maxDate.getDate() + 50); // ★ここで「50日後」を指定しています
-      const maxDateStr = formatDate(maxDate);
-      // ▲ 追加ここまで
-
       for (let d = 1; d <= lastDay.getDate(); d++) {
         const currentCheck = new Date(year, month, d);
         if (currentCheck.getDay() === 0 && d !== 1) { html += `</tr><tr>`; }
         const dateStr = formatDate(currentCheck);
         let classes = "day-cell";
         let onClick = `selectDate('${dateStr}')`;
+        const todayStr = formatDate(new Date());
         const dayOfWeek = currentCheck.getDay();
-        
-        // 変更点: 「dateStr > maxDateStr (50日より先)」の条件を追加してグレーアウトさせる
-        if (dateStr < todayStr || dateStr > maxDateStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { 
-          classes += " disabled"; 
-          onClick = ""; 
-        }
-        
+        if (dateStr < todayStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { classes += " disabled"; onClick = ""; }
         html += `<td class="${classes}" id="cell-${dateStr}" onclick="${onClick}">${d}</td>`;
       }
       html += `</tr></tbody></table>`;
       return html;
     }
+function selectDate(dateStr) {
+      const val1 = document.getElementById('val-date1').value;
+      const val2 = document.getElementById('val-date2').value;
 
-    function selectDate(dateStr) {
-      if (currentMode === 1) { document.getElementById('val-date1').value = dateStr; document.getElementById('disp-date1').innerText = dateStr; setMode(2); }
-      else { document.getElementById('val-date2').value = dateStr; document.getElementById('disp-date2').innerText = dateStr; }
+      if (currentMode === 1) { 
+        if (dateStr === val2) {
+          alert("第1希望と第2希望は『別の日付』を選択してください。");
+          return;
+        }
+        document.getElementById('val-date1').value = dateStr; 
+        document.getElementById('disp-date1').innerText = dateStr; 
+        setMode(2); 
+      } else { 
+        if (dateStr === val1) {
+          alert("第1希望と第2希望は『別の日付』を選択してください。");
+          return;
+        }
+        document.getElementById('val-date2').value = dateStr; 
+        document.getElementById('disp-date2').innerText = dateStr; 
+      }
       updateCalendarStyles();
     }
     function setMode(mode) {
@@ -261,8 +261,8 @@ function renderCalendars() {
       const optionEls = document.querySelectorAll('input[name="option"]:checked');
       const options = Array.from(optionEls).map(el => el.value).join(', ');
 
-      if (!cardNo || !ownerLastName || !ownerFirstName || !petName || !date1) { 
-        alert("必須項目が入力されていません。"); 
+if (!cardNo || !ownerLastName || !ownerFirstName || !petName || !date1 || !date2) { 
+        alert("必須項目がすべて入力されていません。\n※第1希望日と第2希望日の『両方』を選択してください。"); 
         return; 
       }
       
