@@ -179,15 +179,18 @@
       }
     }
 
+    // ★修正反映：カレンダーを3ヶ月分表示する
     function renderCalendars() {
       const container = document.getElementById('calendar-container');
       container.innerHTML = "";
       const today = new Date();
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 3; i++) {
         const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
         container.innerHTML += createMonthHTML(targetDate.getFullYear(), targetDate.getMonth());
       }
     }
+
+    // ★修正反映：50日後以降をグレーアウトする
     function createMonthHTML(year, month) {
       const monthNames =["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
       const firstDay = new Date(year, month, 1);
@@ -195,21 +198,34 @@
       let html = `<div style="text-align:center;font-weight:bold;margin:15px 0 10px;">${year}年 ${monthNames[month]}</div>`;
       html += `<table class="calendar-table"><thead><tr><th style="color:red">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th style="color:blue">土</th></tr></thead><tbody><tr>`;
       for (let i = 0; i < firstDay.getDay(); i++) { html += `<td></td>`; }
+      
+      const todayDate = new Date();
+      const todayStr = formatDate(todayDate);
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() + 50); // 50日後まで
+      const maxDateStr = formatDate(maxDate);
+
       for (let d = 1; d <= lastDay.getDate(); d++) {
         const currentCheck = new Date(year, month, d);
         if (currentCheck.getDay() === 0 && d !== 1) { html += `</tr><tr>`; }
         const dateStr = formatDate(currentCheck);
         let classes = "day-cell";
         let onClick = `selectDate('${dateStr}')`;
-        const todayStr = formatDate(new Date());
         const dayOfWeek = currentCheck.getDay();
-        if (dateStr < todayStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { classes += " disabled"; onClick = ""; }
+        
+        if (dateStr < todayStr || dateStr > maxDateStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { 
+          classes += " disabled"; 
+          onClick = ""; 
+        }
+        
         html += `<td class="${classes}" id="cell-${dateStr}" onclick="${onClick}">${d}</td>`;
       }
       html += `</tr></tbody></table>`;
       return html;
     }
-function selectDate(dateStr) {
+
+    // ★修正反映：第1希望と第2希望の同日選択をブロック
+    function selectDate(dateStr) {
       const val1 = document.getElementById('val-date1').value;
       const val2 = document.getElementById('val-date2').value;
 
@@ -231,11 +247,13 @@ function selectDate(dateStr) {
       }
       updateCalendarStyles();
     }
+
     function setMode(mode) {
       currentMode = mode;
       document.getElementById('box-1').className = mode === 1 ? 'date-box active' : 'date-box';
       document.getElementById('box-2').className = mode === 2 ? 'date-box active' : 'date-box';
     }
+
     function updateCalendarStyles() {
       const cells = document.querySelectorAll('.day-cell');
       cells.forEach(c => { c.classList.remove('selected-1', 'selected-2'); });
@@ -245,6 +263,7 @@ function selectDate(dateStr) {
       if (d2) { const el = document.getElementById('cell-' + d2); if (el) el.classList.add('selected-2'); }
     }
     
+    // ★修正反映：第2希望も必須チェック
     function submitReservation() {
       if (!myAccessToken) { if(!confirm("【注意】\nLINE連携ができていないため、予約の控え通知が届きません。\n\nそれでも予約を送信しますか？")) return; }
       
@@ -261,7 +280,7 @@ function selectDate(dateStr) {
       const optionEls = document.querySelectorAll('input[name="option"]:checked');
       const options = Array.from(optionEls).map(el => el.value).join(', ');
 
-if (!cardNo || !ownerLastName || !ownerFirstName || !petName || !date1 || !date2) { 
+      if (!cardNo || !ownerLastName || !ownerFirstName || !petName || !date1 || !date2) { 
         alert("必須項目がすべて入力されていません。\n※第1希望日と第2希望日の『両方』を選択してください。"); 
         return; 
       }
