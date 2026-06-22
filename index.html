@@ -75,9 +75,9 @@
 
     <div class="card">
       <label style="margin-top:0;">トリミング内容</label>
-      <div class="radio-group">
-        <label class="radio-label"><input type="radio" name="menu" value="シャンプー" checked> シャンプー</label>
-        <label class="radio-label"><input type="radio" name="menu" value="カット"> カット</label>
+<div class="radio-group">
+        <label class="radio-label"><input type="radio" name="menu" value="シャンプー" checked onchange="onChangeMenu()"> シャンプー</label>
+        <label class="radio-label"><input type="radio" name="menu" value="カット" onchange="onChangeMenu()"> カット</label>
       </div>
 
       <label>シャンプーの種類（任意）</label>
@@ -122,22 +122,31 @@
     <div style="margin-top:40px;font-weight:bold;background:#eee;padding:20px;border-radius:8px;">画面右上の「×」ボタンで<br>画面を閉じてください</div>
   </div>
 
-  <script>
+<script>
     // GAS
     const gasApiUrl = "https://script.google.com/macros/s/AKfycbxFyNZqwMI8M_IaesWwWxu5PjZSLXoLwgdPVuXT1QXBTxFB-i4fbRKrzf5Z0G8Rl8VV/exec"; 
 
     const myLiffId = '2008780635-CFUcjozG'; 
     let currentMode = 1;
-    let blockedDates =[];
+    
+    // ★変更：GASから受け取るデータ用の変数（初期値）
+    let serverData = { fullBlock: [], cutBlock: [], minDays: 2, maxDays: 60 };
     let myAccessToken = ""; 
 
     window.onload = function() {
       loadUserData();
 
+      // ★変更：GASからのデータ受け取り処理
       fetch(gasApiUrl + "?action=getBlockDates")
         .then(res => res.json())
-        .then(data => { blockedDates = data; renderCalendars(); })
-        .catch(err => { console.error(err); renderCalendars(); });
+        .then(data => { 
+          serverData = data; 
+          renderCalendars(); 
+        })
+        .catch(err => { 
+          console.error(err); 
+          renderCalendars(); 
+        });
 
       liff.init({ liffId: myLiffId }).then(() => {
         if (liff.isLoggedIn()) {
@@ -153,14 +162,8 @@
       document.getElementById('login-area').style.display = 'none';
     }
 
-    // 姓名分割対応保存・読み込み
     function saveUserData(cardNo, ownerLastName, ownerFirstName, petName) {
-      const userData = { 
-        cardNo: cardNo, 
-        ownerLastName: ownerLastName, 
-        ownerFirstName: ownerFirstName, 
-        petName: petName 
-      };
+      const userData = { cardNo: cardNo, ownerLastName: ownerLastName, ownerFirstName: ownerFirstName, petName: petName };
       localStorage.setItem('trimming_user_data', JSON.stringify(userData));
     }
 
@@ -179,7 +182,37 @@
       }
     }
 
-    // ★修正反映：カレンダーを3ヶ月分表示する
+    // ★新規追加：メニュー（シャンプー/カット）が変更された時の処理
+    function onChangeMenu() {
+      const selectedMenu = document.querySelector('input[name="menu"]:checked').value;
+      
+      // カットに変更された場合、選択済みの日付がカット不可日（△）ならリセットする
+      if (selectedMenu === "カット") {
+        const d1 = document.getElementById('val-date1').value;
+        const d2 = document.getElementById('val-date2').value;
+        let resetNeeded = false;
+
+        if (d1 && serverData.cutBlock.includes(d1)) {
+          document.getElementById('val-date1').value = "";
+          document.getElementById('disp-date1').innerText = "未選択";
+          resetNeeded = true;
+        }
+        if (d2 && serverData.cutBlock.includes(d2)) {
+          document.getElementById('val-date2').value = "";
+          document.getElementById('disp-date2').innerText = "未選択";
+          resetNeeded = true;
+        }
+
+        if (resetNeeded) {
+          alert("選択されていた日付は「カット」の予約ができないため、日付をリセットしました。\nお手数ですが、再度ご希望日を選択してください。");
+        }
+      }
+      
+      // カレンダーを再描画して、選択状態を復元する
+      renderCalendars();
+      updateCalendarStyles();
+    }
+
     function renderCalendars() {
       const container = document.getElementById('calendar-container');
       container.innerHTML = "";
@@ -190,7 +223,7 @@
       }
     }
 
-    // ★修正反映：50日後以降をグレーアウトする
+    // ★変更：GASから受け取った日数設定とブロックリストを使ってカレンダーを作る
     function createMonthHTML(year, month) {
       const monthNames =["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
       const firstDay = new Date(year, month, 1);
@@ -200,10 +233,20 @@
       for (let i = 0; i < firstDay.getDay(); i++) { html += `<td></td>`; }
       
       const todayDate = new Date();
-      const todayStr = formatDate(todayDate);
-      const maxDate = new Date();
-      maxDate.setDate(maxDate.getDate() + 50); // 50日後まで
+      todayDate.setHours(0, 0, 0, 0);
+      
+      // GASで設定した最短予約日を適用
+      const minDate = new Date(todayDate.getTime());
+      minDate.setDate(minDate.getDate() + serverData.minDays);
+      const minDateStr = formatDate(minDate);
+
+      // GASで設定した最長予約日を適用
+      const maxDate = new Date(todayDate.getTime());
+      maxDate.setDate(maxDate.getDate() + serverData.maxDays);
       const maxDateStr = formatDate(maxDate);
+
+      // 現在選択されているメニューを取得
+      const selectedMenu = document.querySelector('input[name="menu"]:checked').value;
 
       for (let d = 1; d <= lastDay.getDate(); d++) {
         const currentCheck = new Date(year, month, d);
@@ -213,7 +256,22 @@
         let onClick = `selectDate('${dateStr}')`;
         const dayOfWeek = currentCheck.getDay();
         
-        if (dateStr < todayStr || dateStr > maxDateStr || dayOfWeek === 0 || dayOfWeek === 3 || blockedDates.includes(dateStr)) { 
+        let isDisabled = false;
+
+        // 1. 範囲外（過去、最短日より前、最長日より後）または水・日は無条件ブロック
+        if (dateStr < minDateStr || dateStr > maxDateStr || dayOfWeek === 0 || dayOfWeek === 3) {
+          isDisabled = true;
+        } 
+        // 2. 完全満枠・休診日
+        else if (serverData.fullBlock.includes(dateStr)) {
+          isDisabled = true;
+        } 
+        // 3. カット不可日（メニューがカットの場合のみブロック）
+        else if (selectedMenu === "カット" && serverData.cutBlock.includes(dateStr)) {
+          isDisabled = true;
+        }
+
+        if (isDisabled) {
           classes += " disabled"; 
           onClick = ""; 
         }
@@ -224,7 +282,6 @@
       return html;
     }
 
-    // ★修正反映：第1希望と第2希望の同日選択をブロック
     function selectDate(dateStr) {
       const val1 = document.getElementById('val-date1').value;
       const val2 = document.getElementById('val-date2').value;
@@ -263,7 +320,6 @@
       if (d2) { const el = document.getElementById('cell-' + d2); if (el) el.classList.add('selected-2'); }
     }
     
-    // ★修正反映：第2希望も必須チェック
     function submitReservation() {
       if (!myAccessToken) { if(!confirm("【注意】\nLINE連携ができていないため、予約の控え通知が届きません。\n\nそれでも予約を送信しますか？")) return; }
       
@@ -291,7 +347,6 @@
       btn.disabled = true;
       btn.innerText = "送信中...";
 
-      // GASへ送信
       const data = { 
         cardNo: cardNo, 
         ownerLastName: ownerLastName, 
@@ -331,5 +386,3 @@
       return y + '-' + m + '-' + d;
     }
   </script>
-</body>
-</html>
